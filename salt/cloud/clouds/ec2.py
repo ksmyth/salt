@@ -3924,6 +3924,7 @@ def get_password_data(
         if pwdata is not None:
             rsa_key = kwargs['key']
             pwdata = base64.b64decode(pwdata)
+            import Crypto.Hash.SHA
             dsize = Crypto.Hash.SHA.digest_size
             sentinel = Crypto.Random.new().read(15 + dsize)
             key_obj = Crypto.PublicKey.RSA.importKey(rsa_key)
