@@ -26,7 +26,6 @@ import re
 import uuid
 import salt.ext.six as six
 
-
 # Let's import pwd and catch the ImportError. We'll raise it if this is not
 # Windows
 try:
@@ -677,7 +676,7 @@ def wait_for_winexesvc(host, port, username, password, timeout=900):
         )
     )
     creds = '-U {0}%{1} //{2}'.format(
-            username, password, host)
+            username, pipes.quote(password), host)
     trycount = 0
     while True:
         trycount += 1
@@ -709,7 +708,7 @@ def validate_windows_cred(host, username='Administrator', password=None, retries
     '''
     for i in xrange(retries):
         retcode = win_cmd('winexe -U {0}%{1} //{2} "hostname"'.format(
-            username, password, host
+            username, pipes.quote(password), host
         ))
         if retcode == 0:
             break
@@ -830,7 +829,7 @@ def deploy_windows(host,
         smb_conn = salt.utils.smb.get_conn(host, username, password)
 
         creds = '-U {0}%{1} //{2}'.format(
-            username, password, host)
+            username, pipes.quote(password), host)
 
         salt.utils.smb.mkdirs('salttemp', conn=smb_conn)
         salt.utils.smb.mkdirs('salt/conf/pki/minion', conn=smb_conn)
