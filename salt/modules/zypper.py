@@ -16,7 +16,7 @@ import os
 # pylint: disable=import-error,redefined-builtin,no-name-in-module
 import salt.ext.six as six
 from salt.ext.six.moves import configparser
-from salt.ext.six.moves.urllib.parse import urlparse
+from salt.ext.six.moves.urllib.parse import urlparse as _urlparse
 # pylint: enable=import-error,redefined-builtin,no-name-in-module
 
 from xml.dom import minidom as dom
@@ -216,13 +216,13 @@ def list_pkgs(versions_as_list=False, **kwargs):
             __salt__['pkg_resource.stringify'](ret)
             return ret
 
-    cmd = ('rpm', '-qa', '--queryformat', '%{NAME}_|-%{VERSION}_|-%{RELEASE}\\n')
+    cmd = ['rpm', '-qa', '--queryformat', '%{NAME}_|-%{VERSION}_|-%{RELEASE}\\n']
     ret = {}
     out = __salt__['cmd.run'](
-            cmd,
-            output_loglevel='trace',
-            python_shell=False
-            )
+        cmd,
+        output_loglevel='trace',
+        python_shell=False
+    )
     for line in out.splitlines():
         name, pkgver, rel = line.split('_|-')
         if rel:
@@ -366,7 +366,7 @@ def mod_repo(repo, **kwargs):
             raise CommandExecutionError(
                 'Repository \'{0}\' not found and no URL passed to create one.'.format(repo))
 
-        if not urlparse(url).scheme:
+        if not _urlparse(url).scheme:
             raise CommandExecutionError(
                 'Repository \'{0}\' not found and passed URL looks wrong.'.format(repo))
 
@@ -375,15 +375,15 @@ def mod_repo(repo, **kwargs):
             repo_meta = _get_repo_info(alias, repos_cfg=repos_cfg)
 
             # Complete user URL, in case it is not
-            new_url = urlparse(url)
+            new_url = _urlparse(url)
             if not new_url.path:
-                new_url = urlparse.ParseResult(scheme=new_url.scheme,  # pylint: disable=E1123
+                new_url = _urlparse.ParseResult(scheme=new_url.scheme,  # pylint: disable=E1123
                                                netloc=new_url.netloc,
                                                path='/',
                                                params=new_url.params,
                                                query=new_url.query,
                                                fragment=new_url.fragment)
-            base_url = urlparse(repo_meta['baseurl'])
+            base_url = _urlparse(repo_meta['baseurl'])
 
             if new_url == base_url:
                 raise CommandExecutionError(
@@ -603,7 +603,7 @@ def install(name=None,
     old = list_pkgs()
     downgrades = []
     if fromrepo:
-        fromrepoopt = ('--force', '--force-resolution', '--from', fromrepo)
+        fromrepoopt = ['--force', '--force-resolution', '--from', fromrepo]
         log.info('Targeting repo {0!r}'.format(fromrepo))
     else:
         fromrepoopt = ''
@@ -611,17 +611,17 @@ def install(name=None,
     # the maximal length of the command line is not broken
     while targets:
         cmd = ['zypper', '--non-interactive', 'install', '--name',
-                '--auto-agree-with-licenses']
+               '--auto-agree-with-licenses']
         if fromrepo:
             cmd.extend(fromrepoopt)
         cmd.extend(targets[:500])
         targets = targets[500:]
 
         out = __salt__['cmd.run'](
-                cmd,
-                output_loglevel='trace',
-                python_shell=False
-                )
+            cmd,
+            output_loglevel='trace',
+            python_shell=False
+        )
         for line in out.splitlines():
             match = re.match(
                 "^The selected package '([^']+)'.+has lower version",
@@ -632,7 +632,7 @@ def install(name=None,
 
     while downgrades:
         cmd = ['zypper', '--non-interactive', 'install', '--name',
-            '--auto-agree-with-licenses', '--force']
+               '--auto-agree-with-licenses', '--force']
         if fromrepo:
             cmd.extend(fromrepoopt)
         cmd.extend(downgrades[:500])

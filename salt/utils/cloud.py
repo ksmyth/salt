@@ -107,6 +107,9 @@ def os_script(os_, vm_=None, opts=None, minion=''):
     '''
     Return the script as a string for the specific os
     '''
+    if minion:
+        minion = salt_config_to_yaml(minion)
+
     if os.path.isabs(os_):
         # The user provided an absolute path to the deploy script, let's use it
         return __render_script(os_, vm_, opts, minion)
@@ -315,11 +318,12 @@ def bootstrap(vm_, opts):
 
     ret = {}
 
+    minion_conf = salt.utils.cloud.minion_config(opts, vm_)
     deploy_script_code = os_script(
         salt.config.get_cloud_config_value(
             'os', vm_, opts, default='bootstrap-salt'
         ),
-        vm_, opts
+        vm_, opts, minion_conf
     )
 
     ssh_username = salt.config.get_cloud_config_value(
@@ -367,7 +371,7 @@ def bootstrap(vm_, opts):
         'script_env': salt.config.get_cloud_config_value(
             'script_env', vm_, opts
         ),
-        'minion_conf': salt.utils.cloud.minion_config(opts, vm_),
+        'minion_conf': minion_conf,
         'preseed_minion_keys': vm_.get('preseed_minion_keys', None),
         'display_ssh_output': salt.config.get_cloud_config_value(
             'display_ssh_output', vm_, opts, default=True
@@ -2606,10 +2610,12 @@ def run_func_until_ret_arg(fun, kwargs, fun_call=None, argument_being_watched=No
         f_result = fun(kwargs, call=fun_call)
         r_set = {}
         for d in f_result:
-            for k, v in d.items():
-                r_set[k] = v
-        result = r_set.get('item')
-        status = _unwrap_dict(result, argument_being_watched)
+            if isinstance(d, list):
+                d0 = d[0]
+                if isinstance(d0, dict):
+                    for k, v in d0.items():
+                        r_set[k] = v
+        status = _unwrap_dict(r_set, argument_being_watched)
         log.debug('Function: {0}, Watched arg: {1}, Response: {2}'.format(str(fun).split(' ')[1],
                                                                           argument_being_watched,
                                                                           status))

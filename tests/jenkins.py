@@ -189,7 +189,7 @@ def download_unittest_reports(options):
     os.makedirs(xml_reports_path)
 
     cmds = (
-        'salt {0} archive.tar zcvf /tmp/xml-test-reports.tar.gz \'*.xml\' cwd=/tmp/xml-unitests-output/',
+        'salt {0} archive.tar zcvf /tmp/xml-test-reports.tar.gz \'*.xml\' cwd=/tmp/xml-unittests-output/',
         'salt {0} cp.push /tmp/xml-test-reports.tar.gz',
         'mv -f /var/cache/salt/master/minions/{1}/files/tmp/xml-test-reports.tar.gz {2} && '
         'tar zxvf {2}/xml-test-reports.tar.gz -C {2}/xml-test-reports && '
@@ -468,6 +468,7 @@ def run(opts):
                 'SALT_MINION_BOOTSTRAP_RELEASE',
                 opts.bootstrap_salt_commit[:7]
             )
+            print('Minion reported salt version: {0}'.format(version_info))
             if bootstrap_minion_version not in version_info[vm_name]:
                 print('\n\nATTENTION!!!!\n')
                 print('The boostrapped minion version commit does not contain the desired commit:')

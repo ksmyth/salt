@@ -1798,8 +1798,12 @@ def update_lxc_conf(name, lxc_conf, lxc_conf_unset):
                 if not row:
                     continue
                 for conf in row:
-                    filtered_lxc_conf.append((conf.strip(),
-                                              row[conf].strip()))
+                    try:
+                        filtered_lxc_conf.append((conf.strip(),
+                                                  row[conf].strip()))
+                    except AttributeError:
+                        filtered_lxc_conf.append((conf.strip(),
+                                                  str(row[conf]).strip()))
             ret['comment'] = 'lxc.conf is up to date'
             lines = []
             orig_config = fic.read()
@@ -1851,7 +1855,7 @@ def update_lxc_conf(name, lxc_conf, lxc_conf_unset):
             if conf_changed:
                 with salt.utils.fopen('{0}.{1}'.format(lxc_conf_p, chrono), 'w') as wfic:
                     wfic.write(conf)
-                with salt.utils.fopen(lxc_conf_p, 'w') as wific:
+                with salt.utils.fopen(lxc_conf_p, 'w') as wfic:
                     wfic.write(conf)
                 ret['comment'] = 'Updated'
                 ret['result'] = True

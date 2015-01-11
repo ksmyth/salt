@@ -779,7 +779,7 @@ def sed(path,
         )
     )
 
-    return __salt__['cmd.run_all'](cmd)
+    return __salt__['cmd.run_all'](cmd, python_shell=False)
 
 
 def sed_contains(path,
@@ -820,7 +820,7 @@ def sed_contains(path,
         flags='p{0}'.format(flags),
         path=path)
 
-    result = __salt__['cmd.run'](cmd)
+    result = __salt__['cmd.run'](cmd, python_shell=False)
 
     return bool(result)
 
@@ -1149,8 +1149,8 @@ def replace(path,
 
     .. code-block:: bash
 
-        salt '*' file.replace /etc/httpd/httpd.conf 'LogLevel warn' 'LogLevel info'
-        salt '*' file.replace /some/file 'before' 'after' flags='[MULTILINE, IGNORECASE]'
+        salt '*' file.replace /etc/httpd/httpd.conf pattern='LogLevel warn' repl='LogLevel info'
+        salt '*' file.replace /some/file pattern='before' repl='after' flags='[MULTILINE, IGNORECASE]'
     '''
     path = os.path.expanduser(path)
 
@@ -1194,24 +1194,37 @@ def replace(path,
         # will be an empty file after iterating over it just for searching
         fi_file = fileinput.input(path,
                         inplace=False,
+                        backup=False,
                         bufsize=bufsize,
                         mode='r')
 
         for line in fi_file:
-            result = re.search(repl, line)
-            if result:
-                if search_only:
-                    return True
-                found = True
+
+            line = line.strip()
+
+            if (prepend_if_not_found or append_if_not_found) and not_found_content:
+                if line == not_found_content:
+                    if search_only:
+                        return True
+                    found = True
+                    break
+
+            else:
+                if line == repl:
+                    if search_only:
+                        return True
+                    found = True
+                    break
+
     finally:
         fi_file.close()
 
     try:
         fi_file = fileinput.input(path,
                         inplace=not (dry_run or search_only),
-                        backup=False if dry_run else backup,
+                        backup=False if (dry_run or search_only or found) else backup,
                         bufsize=bufsize,
-                        mode='r' if (dry_run or search_only) else 'rb')
+                        mode='r' if (dry_run or search_only or found) else 'rb')
 
         if not found:
             for line in fi_file:
@@ -1535,7 +1548,7 @@ def patch(originalfile, patchfile, options='', dry_run=False):
         dry_run_opt = ''
     cmd = 'patch {0}{1} "{2}" "{3}"'.format(
         options, dry_run_opt, originalfile, patchfile)
-    return __salt__['cmd.run_all'](cmd)
+    return __salt__['cmd.run_all'](cmd, python_shell=False)
 
 
 def contains(path, text):
@@ -2424,7 +2437,7 @@ def restorecon(path, recursive=False):
         cmd = 'restorecon -FR {0}'.format(path)
     else:
         cmd = 'restorecon -F {0}'.format(path)
-    return not __salt__['cmd.retcode'](cmd)
+    return not __salt__['cmd.retcode'](cmd, python_shell=False)
 
 
 def get_selinux_context(path):
@@ -2437,7 +2450,7 @@ def get_selinux_context(path):
 
         salt '*' file.get_selinux_context /etc/hosts
     '''
-    out = __salt__['cmd.run']('ls -Z {0}'.format(path))
+    out = __salt__['cmd.run']('ls -Z {0}'.format(path), python_shell=False)
 
     try:
         ret = re.search(r'\w+:\w+:\w+:\w+', out).group(0)
@@ -2475,7 +2488,7 @@ def set_selinux_context(path,
         cmd += '-l {0} '.format(range)
 
     cmd += path
-    ret = not __salt__['cmd.retcode'](cmd)
+    ret = not __salt__['cmd.retcode'](cmd, python_shell=False)
     if ret:
         return get_selinux_context(path)
     else:
@@ -4151,7 +4164,7 @@ def grep(path,
     )
 
     try:
-        ret = __salt__['cmd.run_all'](cmd)
+        ret = __salt__['cmd.run_all'](cmd, python_shell=False)
     except (IOError, OSError) as exc:
         raise CommandExecutionError(exc.strerror)
 

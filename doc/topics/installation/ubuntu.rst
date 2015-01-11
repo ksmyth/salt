@@ -67,6 +67,20 @@ may be given at a time:
 
     sudo apt-get install salt-syndic
 
+Some core components are packaged separately in the Ubuntu repositories.  These should be installed as well: salt-cloud, salt-ssh, salt-api
+
+.. code-block:: bash
+
+    sudo apt-get install salt-cloud
+    
+.. code-block:: bash
+
+    sudo apt-get install salt-ssh
+    
+.. code-block:: bash
+
+    sudo apt-get install salt-api
+
 .. _ubuntu-config:
 
 
@@ -91,15 +105,14 @@ the minion:
 .. code-block:: yaml
 
     update_zmq:
-      pkg:
-        - latest
+      pkg.latest:
         - pkgs:
           - zeromq
           - python-zmq
         - order: last
-      cmd:
-        - wait
-        - name: echo service salt-minion restart | at now + 1 minute
+      cmd.wait:
+        - name: |
+            echo service salt-minion restart | at now + 1 minute
         - watch:
           - pkg: update_zmq
 

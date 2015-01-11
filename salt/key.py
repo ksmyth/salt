@@ -483,10 +483,15 @@ class Key(object):
                                         pubkey,
                                         sig_path)
 
-    def check_minion_cache(self):
+    def check_minion_cache(self, preserve_minions=None):
         '''
         Check the minion cache to make sure that old minion data is cleared
+
+        Optionally, pass in a list of minions which should have their caches
+        preserved. To preserve all caches, set __opts__['preserve_minion_cache']
         '''
+        if preserve_minions is None:
+            preserve_minions = []
         m_cache = os.path.join(self.opts['cachedir'], self.ACC)
         if not os.path.isdir(m_cache):
             return
@@ -494,9 +499,9 @@ class Key(object):
         minions = []
         for key, val in keys.items():
             minions.extend(val)
-        if self.opts.get('preserve_minion_cache', False):
+        if not self.opts.get('preserve_minion_cache', False) or not preserve_minions:
             for minion in os.listdir(m_cache):
-                if minion not in minions:
+                if minion not in minions and minion not in preserve_minions:
                     shutil.rmtree(os.path.join(m_cache, minion))
 
     def check_master(self):
@@ -550,7 +555,7 @@ class Key(object):
         cur_keys = self.list_keys()
         for status, keys in match_dict.items():
             for key in salt.utils.isorted(keys):
-                for keydir in (self.ACC, self.PRE, self.REJ, self.DEN):
+                for keydir in (self.ACC, self.PEND, self.REJ, self.DEN):
                     if keydir and fnmatch.filter(cur_keys.get(keydir, []), key):
                         ret.setdefault(keydir, []).append(key)
         return ret
@@ -670,7 +675,7 @@ class Key(object):
             matches = match_dict
         else:
             matches = {}
-        keydirs = [self.PRE]
+        keydirs = [self.PEND]
         if include_rejected:
             keydirs.append(self.REJ)
         for keydir in keydirs:
@@ -702,12 +707,12 @@ class Key(object):
         Accept all keys in pre
         '''
         keys = self.list_keys()
-        for key in keys[self.PRE]:
+        for key in keys[self.PEND]:
             try:
                 shutil.move(
                         os.path.join(
                             self.opts['pki_dir'],
-                            self.PRE,
+                            self.PEND,
                             key),
                         os.path.join(
                             self.opts['pki_dir'],
@@ -722,10 +727,12 @@ class Key(object):
                 pass
         return self.list_keys()
 
-    def delete_key(self, match=None, match_dict=None):
+    def delete_key(self, match=None, match_dict=None, preserve_minions=False):
         '''
         Delete public keys. If "match" is passed, it is evaluated as a glob.
         Pre-gathered matches can also be passed via "match_dict".
+
+        To preserve the master caches of minions who are matched, set preserve_minions
         '''
         if match is not None:
             matches = self.name_match(match)
@@ -743,9 +750,9 @@ class Key(object):
                     self.event.fire_event(eload, tagify(prefix='key'))
                 except (OSError, IOError):
                     pass
-        self.check_minion_cache()
+        self.check_minion_cache(preserve_minions=matches.get('minions', []))
         if self.opts.get('rotate_aes_key'):
-            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'], self.opts['sock_dir'])
+            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'])
         return (
             self.name_match(match) if match is not None
             else self.dict_match(matches)
@@ -767,7 +774,7 @@ class Key(object):
                     pass
         self.check_minion_cache()
         if self.opts.get('rotate_aes_key'):
-            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'], self.opts['sock_dir'])
+            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'])
         return self.list_keys()
 
     def reject(self, match=None, match_dict=None, include_accepted=False):
@@ -781,7 +788,7 @@ class Key(object):
             matches = match_dict
         else:
             matches = {}
-        keydirs = [self.PRE]
+        keydirs = [self.PEND]
         if include_accepted:
             keydirs.append(self.ACC)
         for keydir in keydirs:
@@ -805,7 +812,7 @@ class Key(object):
                     pass
         self.check_minion_cache()
         if self.opts.get('rotate_aes_key'):
-            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'], self.opts['sock_dir'])
+            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'])
         return (
             self.name_match(match) if match is not None
             else self.dict_match(matches)
@@ -816,12 +823,12 @@ class Key(object):
         Reject all keys in pre
         '''
         keys = self.list_keys()
-        for key in keys[self.PRE]:
+        for key in keys[self.PEND]:
             try:
                 shutil.move(
                         os.path.join(
                             self.opts['pki_dir'],
-                            self.PRE,
+                            self.PEND,
                             key),
                         os.path.join(
                             self.opts['pki_dir'],
@@ -836,7 +843,7 @@ class Key(object):
                 pass
         self.check_minion_cache()
         if self.opts.get('rotate_aes_key'):
-            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'], self.opts['sock_dir'])
+            salt.crypt.dropfile(self.opts['cachedir'], self.opts['user'])
         return self.list_keys()
 
     def finger(self, match):
@@ -894,7 +901,7 @@ class RaetKey(Key):
         rejected = os.path.join(self.opts['pki_dir'], self.REJ)
         return accepted, pre, rejected
 
-    def check_minion_cache(self):
+    def check_minion_cache(self, preserve_minions=False):
         '''
         Check the minion cache to make sure that old minion data is cleared
         '''
@@ -1142,7 +1149,7 @@ class RaetKey(Key):
                 pass
         return self.list_keys()
 
-    def delete_key(self, match=None, match_dict=None):
+    def delete_key(self, match=None, match_dict=None, preserve_minions=False):
         '''
         Delete public keys. If "match" is passed, it is evaluated as a glob.
         Pre-gathered matches can also be passed via "match_dict".
@@ -1159,7 +1166,7 @@ class RaetKey(Key):
                     os.remove(os.path.join(self.opts['pki_dir'], status, key))
                 except (OSError, IOError):
                     pass
-        self.check_minion_cache()
+        self.check_minion_cache(preserve_minions=matches.get('minions', []))
         return (
             self.name_match(match) if match is not None
             else self.dict_match(matches)
